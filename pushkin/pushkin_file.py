@@ -4,6 +4,7 @@ class PushkinFile(object):
     def __init__(self, parent, path):
         self.parent = parent
         self.path = path
+        self.base_name = os.path.basename(path)
 
         if not os.path.isfile(path):
             raise IOError
@@ -20,3 +21,5 @@ class PushkinFile(object):
     def __len__(self):
         return self.is_valid
 
+    def __repr__(self):
+        return "<{}>".format(self.base_name)

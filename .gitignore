@@ -1,3 +1,2 @@
-rex.pyc
-vendor/
+*.pyc
 __pycache__/
