@@ -14,7 +14,8 @@ class Pushkin(object):
         self.publish_url = publish_url
         self.settings = {
                 "blocking" : True,
-                "ignore_exts" : ["tmp"]
+                "ignore_exts" : ["tmp"],
+                "delay_exts" : ["mpd", "m3u8"]
             }
         self.settings.update(kwargs)
         self.dir_data = {}
@@ -36,10 +37,18 @@ class Pushkin(object):
             self.main()
             time.sleep(self.settings.get("loop_delay", .2))
 
-    def publish_file(self, path):
-        logging.debug("Publishing {} to {}".format(path, self.publish_url))
-        file_name = os.path.basename(path)
-        payload = open(path, "rb").read()
+    def publish_file(self, file_object, **kwargs):
+        start_time = time.time()
+        file_name = os.path.basename(file_object.path)
+        if file_object.data:
+            payload = file_object.data
+        else:
+            try:
+                payload = file_object.get_data()
+            except IOError:
+                log_traceback()
+                return False
+
         headers={
                 "X-Pushkin-Filename" : file_name,
                 "X-Pushkin-Key" : "anon"
@@ -63,6 +72,13 @@ class Pushkin(object):
 
         if result["response"] >= 400:
             return False
+
+        logging.debug("Published {}{} to {} in {:.02f}".format(
+            file_object.path,
+            " (delayed)" if kwargs.get("delayed", False) else "",
+            self.publish_url,
+            time.time() - start_time
+            ))
         return True
 
 
@@ -73,7 +89,9 @@ class Pushkin(object):
             source_path = os.path.join(self.source_dir, fname)
             try:
                 file_object = PushkinFile(self, source_path)
-            except IOError:
+                if os.path.splitext(source_path)[1].lstrip(".") in self.settings["delay_exts"]:
+                    file_object.load_data()
+            except (IOError, OSError):
                 continue
 
             if source_path in self.dir_data and file_object.mtime == self.dir_data[source_path].mtime:
@@ -85,11 +103,26 @@ class Pushkin(object):
         file_list = self.dir_data.keys()
         file_list.sort(key=lambda x: self.dir_data[x].mtime)
 
+        max_mtime = 0
         for file_path in file_list:
+            if os.path.splitext(file_path)[1].lstrip(".") in self.settings["delay_exts"]:
+                continue
             file_object = self.dir_data[file_path]
             if file_object.published:
                 continue
             if not file_object.publish():
+                logging.warning("{} publish failed".format(file_path))
+            max_mtime = max(max_mtime, file_object.mtime)
+
+        for file_path in file_list:
+            if os.path.splitext(file_path)[1].lstrip(".") not in self.settings["delay_exts"]:
+                continue
+            file_object = self.dir_data[file_path]
+            if file_object.mtime < max_mtime:
+                logging.warning("skipping manifest due to mtime mismatch")
+            if file_object.published:
+                continue
+            if not file_object.publish(delayed = True):
                 logging.warning("{} publish failed".format(file_path))
 
         # dir_data clean-up
