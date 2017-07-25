@@ -100,7 +100,7 @@ class Pushkin(object):
             self.dir_data[source_path] = file_object
             logging.debug("Found new file: {}".format(file_object))
 
-        file_list = self.dir_data.keys()
+        file_list = list(self.dir_data.keys())
         file_list.sort(key=lambda x: self.dir_data[x].mtime)
 
         max_mtime = 0
