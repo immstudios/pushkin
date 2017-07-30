@@ -56,11 +56,15 @@ class Pushkin(object):
         if "dir_name" in self.settings:
             headers["X-Pushkin-Directory"] = self.settings["dir_name"]
 
-        response = requests.post(
-                self.publish_url,
-                data=payload,
-                headers=headers
-            )
+        try:
+            response = requests.post(
+                    self.publish_url,
+                    data=payload,
+                    headers=headers
+                )
+        except Exception:
+            log_traceback()
+            return False
 
         if response.status_code >= 400:
             return False
