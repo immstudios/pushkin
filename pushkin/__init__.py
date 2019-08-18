@@ -13,6 +13,7 @@ class Pushkin(object):
         self.source_dir = source_dir
         self.publish_url = publish_url
         self.settings = {
+                "base_name" : False,
                 "blocking" : True,
                 "ignore_exts" : ["tmp"],
                 "delay_exts" : ["mpd", "m3u8"]
@@ -64,6 +65,7 @@ class Pushkin(object):
                 )
         except Exception:
             log_traceback()
+            time.sleep(.5)
             return False
 
         if response.status_code >= 400:
@@ -88,6 +90,9 @@ class Pushkin(object):
 
     def main(self):
         for fname in  os.listdir(self.source_dir):
+            if self.settings["base_name"]:
+                if not fname.startswith(self.settings["base_name"]):
+                    continue
             if os.path.splitext(fname)[1].lstrip(".").lower() in self.settings["ignore_exts"]:
                 continue
             source_path = os.path.join(self.source_dir, fname)
@@ -102,7 +107,7 @@ class Pushkin(object):
                 continue
 
             self.dir_data[source_path] = file_object
-            logging.debug("Found new file: {}".format(file_object))
+            logging.debug("Found new file: {} {}".format(file_object, self.settings["base_name"] or ""))
 
         file_list = list(self.dir_data.keys())
         file_list.sort(key=lambda x: self.dir_data[x].mtime)
