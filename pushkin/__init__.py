@@ -64,8 +64,8 @@ class Pushkin(object):
                     headers=headers
                 )
         except Exception:
-            log_traceback()
-            time.sleep(.5)
+            log_traceback("Publish failed")
+            time.sleep(1)
             return False
 
         if response.status_code >= 400:
